@@ -24,22 +24,31 @@ int atoi(string str){
 }
 class History{
 	vector<char> predBit; // prediction Bit- predction
-	int m,n;
+	const int m,n;
 	int lastResult;
 	int trans(int pc){
 		int lowerBits=4;
 		string pcstr = itoa(pc, lowerBits);
 		string lastResultStr = itoa(lastResult, m);
 		string str=lastResultStr + pcstr;
-		cout << pc <<" "<<pcstr << " " << lastResultStr<< " " <<str<<endl;
 		return atoi(str);
 	}
 	public:
 		History(int NOEntry):lastResult(0), m(2) , n(1), predBit(NOEntry*1){
 		}
 		bool getPrediction(int pc){
-			int whichM=trans(pc);
-			vector<char> thisTime( predBit.begin()+whichM*n , predBit.begin()+(whichM+1)*n );
+			int column=trans(pc);
+			/*
+			cout<<column<<endl;
+			for(int i=0; i<predBit.size();++i){
+				cout<<predBit[i]+0;
+				if(i%5==0)
+					cout<<endl;
+			}
+			cout<<endl;
+			*/
+			vector<char> thisTime( predBit.begin()+column*n , predBit.begin()+(column+1)*n );
+			/*
 			switch( thisTime[0] ){
 				case 0:
 					return false;
@@ -50,39 +59,67 @@ class History{
 				default:
 					return false;
 			}
+			*/
+			return thisTime[0]==0? false:true;
 		}
-		void pushResult(int whichM, char result){
-			for(int i=whichM*n; i<whichM*(n+1) ;++i ){
+		void pushResult(int pc, char result){
+			int bitBegin = trans(pc) * n;
+			for(int i=bitBegin; i<bitBegin+n-1 ;++i ){
 				predBit[i]=predBit[i+1];
 			}
-			predBit[ whichM*(n+1)-1 ] = result;
+			predBit[ bitBegin+n-1 ] = result;
+			if(result){
+				lastResult = lastResult+1 <4 ? lastResult+1: lastResult;
+			}
+			else{
+				lastResult = lastResult-1 >=0 ? lastResult-1: lastResult;
+			}
 		}
+		int getLastResult(){ return lastResult; }
 };
 
 class CorelatingBranch{
 	History history;
 	int m, n,NOEntry;
-	int accuracy, amount;
+	int correct, amount;
 	public:
-		CorelatingBranch(int tNOEntry): m(2), n(1),history(tNOEntry), accuracy(0), amount(0), NOEntry(tNOEntry){}
+		CorelatingBranch(int tNOEntry): m(2), n(1),history(tNOEntry), correct(0), amount(0), NOEntry(tNOEntry){}
+
 		int next(int pc, int target, int result){
-			history.getPrediction( pc );
+			bool pred = history.getPrediction( pc );
+			if( pred==result ){
+				//cout<<pred<<" "<<history.getLastResult()<<endl;
+				history.pushResult(pc, result);
+				increTimes(true);
+			}
+			else{
+				//cout<<pred<<" "<<history.getLastResult()<<endl;
+				history.pushResult(pc, result);
+				increTimes(false);
+			}
 		}
+		inline void increTimes(bool a){ 
+			++amount;
+			if(a)
+				++correct;
+		}
+		inline int getCorrect(){ return correct; }
+		inline int getAmount(){ return amount; }
 };
 int main(int argc, char* argv[]){
-	int noEntry;
+	int NOEntry;
 	if(argc<2){
 		cout<<"Please input the number of entries: ";
-		cin>>noEntry;
+		cin>>NOEntry;
 	}
 	else if(argc>2){
 		cerr<<"Too many arguments"<<endl;
 		exit(-1);
 	}
 	else{
-		noEntry = atoi( argv[1] );
+		NOEntry = atoi( argv[1] );
 	}
-	CorelatingBranch cb(noEntry);
+	CorelatingBranch cb(NOEntry);
 	// bt - branch table
 	int right=0, amount=0;
 	// right- the number of correct branches
@@ -91,10 +128,10 @@ int main(int argc, char* argv[]){
 	ifstream fin("history.txt");
 	while(getline(fin, str)){
 		istringstream sin(str);
-		int pc, target, result;
+		int pc, target, result, pred;
 		sin >> hex >> pc >> target >>dec >>result;
 
-		cb.next(pc, target, result);
-		cin >>pc;
+		pred = cb.next(pc, target, result);
 	}
+	cout<<cb.getAmount()<<" "<<cb.getCorrect()<<endl;
 }
