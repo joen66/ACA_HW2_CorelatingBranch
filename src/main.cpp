@@ -6,6 +6,7 @@
 #include<sstream>
 #include<vector>
 using namespace std;
+/*
 string itoa(int num, int bits){
 	string str;
 	while(bits){
@@ -15,6 +16,7 @@ string itoa(int num, int bits){
 	}
 	return string(str.rbegin(),str.rend());
 }
+
 int atoi(string str){
 	int num=0,power=1;
 	for(int i=str.size()-1; i>=0 ;--i){
@@ -23,6 +25,7 @@ int atoi(string str){
 	}
 	return num;
 }
+*/
 class History{
 	vector<char> predBit; // prediction Bit- predction
 	const int m,n;
@@ -47,6 +50,15 @@ class History{
 		}
 		bool getPrediction(int pc){
 			int column=trans(pc);
+			/*
+			cout<<column<<endl;
+			for(int i=0; i<predBit.size();++i){
+				cout<<predBit[i]+0;
+				if(i%5==0)
+					cout<<endl;
+			}
+			cout<<endl;
+			*/
 			vector<char> thisTime( predBit.begin()+column*n , predBit.begin()+(column+1)*n );
 			/*
 			switch( thisTime[0] ){
