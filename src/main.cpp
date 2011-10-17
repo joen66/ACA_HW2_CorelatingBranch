@@ -47,6 +47,18 @@ class History{
 		}
 		bool getPrediction(int pc){
 			int column=trans(pc);
+<<<<<<< HEAD
+=======
+			/*
+			cout<<column<<endl;
+			for(int i=0; i<predBit.size();++i){
+				cout<<predBit[i]+0;
+				if(i%5==0)
+					cout<<endl;
+			}
+			cout<<endl;
+			*/
+>>>>>>> 72231636a442822c1bf428f6e1ca2a595f21f89e
 			vector<char> thisTime( predBit.begin()+column*n , predBit.begin()+(column+1)*n );
 			/*
 			switch( thisTime[0] ){
@@ -87,8 +99,21 @@ class CorelatingBranch{
 
 		int next(int pc, int target, int result){
 			bool pred = history.getPrediction( pc );
+<<<<<<< HEAD
 			history.pushResult(pc, result);
 			increTimes( pred==result );
+=======
+			if( pred==result ){
+				//cout<<pred<<" "<<history.getLastResult()<<endl;
+				history.pushResult(pc, result);
+				increTimes(true);
+			}
+			else{
+				//cout<<pred<<" "<<history.getLastResult()<<endl;
+				history.pushResult(pc, result);
+				increTimes(false);
+			}
+>>>>>>> 72231636a442822c1bf428f6e1ca2a595f21f89e
 		}
 		inline void increTimes(bool a){ 
 			++amount;
