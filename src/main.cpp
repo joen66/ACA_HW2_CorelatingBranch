@@ -6,61 +6,39 @@
 #include<sstream>
 #include<vector>
 using namespace std;
-/*
-string itoa(int num, int bits){
-	string str;
-	while(bits){
-		str += '0'+ num%2;
-		num /= 2;
-		--bits;
-	}
-	return string(str.rbegin(),str.rend());
-}
 
-int atoi(string str){
-	int num=0,power=1;
-	for(int i=str.size()-1; i>=0 ;--i){
-		num += (str[i]-'0')*power;
-		power *= 2;
-	}
-	return num;
-}
-*/
-class History{
+class Predictor{
+	public:
+		virtual bool getPrediction(int pc)  =0;
+		virtual void pushResult(int pc, char result) =0;
+		virtual bool getPush(int pc, char result) =0;
+		virtual int getM() const =0;
+		virtual int getN() const =0;
+};
+
+
+class Corelating:  public Predictor {
 	vector<char> predBit; // prediction Bit- predction
 	const int m,n;
 	int lastResult;
-	int trans(int pc){
-		int lowBits= log(predBit.size())/log(2) - m;
-		int mask= pow(2,lowBits), a, b;
-		a= pc&(mask-1);
-		b= (lastResult << lowBits) | a;
-		return b;
-
-		/*
-		int lowerBits=4;
-		string pcstr = itoa(pc, lowerBits);
-		string lastResultStr = itoa(lastResult, m);
-		string str=lastResultStr + pcstr;
-		return atoi(str);
-		*/
-	}
-	public:
-		History(int NOEntry):lastResult(0), m(2) , n(1), predBit(NOEntry*1){
+	protected:
+		int trans(int pc){
+			int lowBits= log(predBit.size())/log(2) - m;
+			int mask= pow(2,lowBits), a, b;
+			a= pc&(mask-1);
+			b= (lastResult << lowBits) | a;
+			return b;
 		}
+	public:
+		Corelating(int NOEntry, int tm, int tn):lastResult(0), m(tm) , n(tn), predBit(NOEntry*tn){
+		};
+		bool setLastResult(int tlastResult){ lastResult = tlastResult; }
+		inline int getLastResult(){ return lastResult; }
+		inline int getM()const { return m; }
+		inline int getN()const { return n; }
 		bool getPrediction(int pc){
 			int column=trans(pc);
-			/*
-			cout<<column<<endl;
-			for(int i=0; i<predBit.size();++i){
-				cout<<predBit[i]+0;
-				if(i%5==0)
-					cout<<endl;
-			}
-			cout<<endl;
-			*/
 			vector<char> thisTime( predBit.begin()+column*n , predBit.begin()+(column+1)*n );
-			/*
 			switch( thisTime[0] ){
 				case 0:
 					return false;
@@ -71,7 +49,6 @@ class History{
 				default:
 					return false;
 			}
-			*/
 			return thisTime[0]==0? false:true;
 		}
 		void pushResult(int pc, char result){
@@ -87,20 +64,23 @@ class History{
 				lastResult = lastResult-1 >=0 ? lastResult-1: lastResult;
 			}
 		}
-		int getLastResult(){ return lastResult; }
+		bool getPush(int pc, char result){
+			int pred = getPrediction(pc);
+			pushResult(pc, result);
+			return pred;
+		}
 };
 
-class CorelatingBranch{
-	History history;
-	int m, n,NOEntry;
+class BranchPredictor{
+	Predictor& ptor;
 	int correct, amount;
 	public:
-		CorelatingBranch(int tNOEntry): m(2), n(1),history(tNOEntry), correct(0), amount(0), NOEntry(tNOEntry){}
+		BranchPredictor(Predictor& tptor): ptor(tptor), correct(0), amount(0){}
 
-		int next(int pc, int target, int result){
-			bool pred = history.getPrediction( pc );
-			history.pushResult(pc, result);
+		bool next(int pc, int target, int result){
+			bool pred = ptor.getPush(pc, result);
 			increTimes( pred==result );
+			return pred==result;
 		}
 		inline void increTimes(bool a){ 
 			++amount;
@@ -111,7 +91,8 @@ class CorelatingBranch{
 		inline int getAmount(){ return amount; }
 };
 int main(int argc, char* argv[]){
-	int NOEntry;
+	int NOEntry, pc, target, result, pred;
+	const int m=2, n=1;
 	if(argc<2){
 		cout<<"Please input the number of entries: ";
 		cin>>NOEntry;
@@ -123,19 +104,12 @@ int main(int argc, char* argv[]){
 	else{
 		NOEntry = atoi( argv[1] );
 	}
-	CorelatingBranch cb(NOEntry);
+	Corelating cb(NOEntry, m, n);
+	BranchPredictor bp(cb);
 	// bt - branch table
-	int right=0, amount=0;
-	// right- the number of correct branches
-	// amount- the number of branches
-	string str;
 	ifstream fin("history.txt");
-	while(getline(fin, str)){
-		istringstream sin(str);
-		int pc, target, result, pred;
-		sin >> hex >> pc >> target >>dec >>result;
-
-		pred = cb.next(pc, target, result);
+	while(fin>> hex >> pc >> target >> dec >> result){
+		pred = bp.next(pc, target, result);
 	}
-	cout<<cb.getAmount()<<" "<<cb.getCorrect()<<endl;
+	cout << bp.getAmount() << " " << bp.getCorrect() <<endl;
 }
