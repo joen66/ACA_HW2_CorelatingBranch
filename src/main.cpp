@@ -1,4 +1,5 @@
 #include<iostream>
+#include<map>
 #include<cmath>
 #include<algorithm>
 #include<cstdlib>
@@ -9,89 +10,132 @@ using namespace std;
 
 class Predictor{
 	public:
-		virtual bool getPrediction(int pc)  =0;
-		virtual void pushResult(int pc, char result) =0;
-		virtual bool getPush(int pc, char result) =0;
-		virtual int getM() const =0;
-		virtual int getN() const =0;
+		virtual bool getPrediction(int pc)	=0;
+		virtual void pushResult(int pc, bool result) =0;
+		virtual bool getPush(int pc, bool result) =0;
 };
 
+struct AssignColumn{
+	int pc;
+	int whichM;
+	AssignColumn(int tpc, int twhichM):pc(tpc), whichM(twhichM){}
+};
 
+struct CmpColumn{
+	bool operator()(AssignColumn a, AssignColumn b){
+		if(a.pc < b.pc)
+			return true;
+		else if(a.pc > b.pc)
+			return false;
+		else
+			if(a.whichM < b.whichM)
+				return true;
+			else
+				return false;
+	}
+};
+class BTB{
+	struct Entry{
+		int brPC,target;
+		Entry(int tbrPC, int ttarget): brPC(tbrPC), target(ttarget){};
+	};
+	vector<Entry> btb;
+	protected:
+	inline int trans(int pc){ return pc % btb.size(); }
+	public:
+	static const int NOADDR = -1;
+	static const int CONFLICT_ADDR = -2;
+	BTB(int NOEntry): btb(NOEntry, Entry(NOADDR,NOADDR) ){};
+	inline int getTargetAddress(int brPC){
+		if(btb[ trans(brPC) ].brPC == NOADDR){
+			return NOADDR;
+		}
+		else if(btb[ trans(brPC) ].brPC !=  brPC)
+			return CONFLICT_ADDR;
+		else
+			return btb[ trans(brPC) ].target;
+	} 
+	inline void setTargetAddress(int brPC, int target){
+		btb[ trans(brPC) ].brPC = brPC;
+		btb[ trans(brPC) ].target = target;
+	}
+	inline int getSet(int brPC,int target){
+		int returnAddr = getTargetAddress(brPC);
+		setTargetAddress(brPC, target);
+		return returnAddr;
+	}
+};
 class Corelating:  public Predictor {
-	vector<char> predBit; // prediction Bit- predction
+	map< AssignColumn, char , CmpColumn> predBit;
 	const int m,n;
 	int lastResult;
 	protected:
-		int trans(int pc){
-			int lowBits= log(predBit.size())/log(2) - m;
-			int mask= pow(2,lowBits), a, b;
-			a= pc&(mask-1);
-			b= (lastResult << lowBits) | a;
-			return b;
-		}
+	int BHTtrans(int pc){
+		int lowBits= log(predBit.size())/log(2) - m;
+		int mask= pow(2,lowBits), a, b;
+		a= pc&(mask-1);
+		b= (lastResult << lowBits) | a;
+		return b;
+	}
 	public:
-		Corelating(int NOEntry, int tm, int tn):lastResult(0), m(tm) , n(tn), predBit(NOEntry*tn){
-		};
-		bool setLastResult(int tlastResult){ lastResult = tlastResult; }
-		inline int getLastResult(){ return lastResult; }
-		inline int getM()const { return m; }
-		inline int getN()const { return n; }
-		bool getPrediction(int pc){
-			int column=trans(pc);
-			vector<char> thisTime( predBit.begin()+column*n , predBit.begin()+(column+1)*n );
-			switch( thisTime[0] ){
-				case 0:
-					return false;
-					break;
-				case 1:
-					return true;
-					break;
-				default:
-					return false;
-			}
-			return thisTime[0]==0? false:true;
+	Corelating(int tm, int tn):m(tm), n(tn), lastResult(0){};
+	void setLastResult(int tlastResult){ lastResult = tlastResult; }
+	inline int getLastResult(){ return lastResult; }
+	inline int getM()const { return m; }
+	inline int getN()const { return n; }
+	bool getPrediction(int pc){
+		AssignColumn assignColumn(pc, getLastResult() );
+		if( predBit.find( assignColumn ) == predBit.end() ){
+			predBit.insert( pair<AssignColumn, char>(assignColumn , 0) );
 		}
-		void pushResult(int pc, char result){
-			int bitBegin = trans(pc) * n;
-			for(int i=bitBegin; i<bitBegin+n-1 ;++i ){
-				predBit[i]=predBit[i+1];
-			}
-			predBit[ bitBegin+n-1 ] = result;
-			if(result){
-				lastResult = lastResult+1 <4 ? lastResult+1: lastResult;
-			}
-			else{
-				lastResult = lastResult-1 >=0 ? lastResult-1: lastResult;
-			}
+		return predBit[assignColumn];
+	}
+	void pushResult(int pc, bool result){
+		AssignColumn assignColumn(pc, getLastResult() );
+		if( predBit.find( assignColumn ) == predBit.end() ){
+			predBit.insert( pair<AssignColumn, char>(assignColumn , 0));
 		}
-		bool getPush(int pc, char result){
-			int pred = getPrediction(pc);
-			pushResult(pc, result);
-			return pred;
-		}
+		if(result)
+			predBit[assignColumn] = predBit[assignColumn] + 1 <4 ? predBit[assignColumn] + 1 : predBit[assignColumn];
+		else
+			predBit[assignColumn] = predBit[assignColumn] - 1 >-1 ? predBit[assignColumn] - 1 : predBit[assignColumn];
+			
+	}
+	bool getPush(int pc, bool result){
+		int pred = getPrediction(pc);
+		pushResult(pc, result);
+		return pred;
+	}
 };
 
 class BranchPredictor{
 	Predictor& ptor;
-	int correct, amount;
+	BTB& btb;
+	int predCorrect, btbHit, amount, compulsoryMiss;
 	public:
-		BranchPredictor(Predictor& tptor): ptor(tptor), correct(0), amount(0){}
+	BranchPredictor(Predictor& tptor, BTB& tbtb): ptor(tptor), btb(tbtb), predCorrect(0), btbHit(0), amount(0),compulsoryMiss(0) {}
 
-		bool next(int pc, int target, int result){
-			bool pred = ptor.getPush(pc, result);
-			increTimes( pred==result );
-			return pred==result;
+	void next(int pc, int target, int result){
+		bool pred = ptor.getPush(pc, result);
+		predCorrect = (pred == result ? predCorrect+1:predCorrect );
+
+		int btbTarget = btb.getSet(pc,target);
+		if( btbTarget == BTB::NOADDR ){
+			++compulsoryMiss;
 		}
-		inline void increTimes(bool a){ 
-			++amount;
-			if(a)
-				++correct;
+		else if(btbTarget != BTB::CONFLICT_ADDR){
+			++btbHit;
 		}
-		inline int getCorrect(){ return correct; }
-		inline int getAmount(){ return amount; }
+		++amount;
+	}
+	inline int getPredCorrect(){ return predCorrect; }
+	inline int getBtbHit(){ return btbHit; }
+	inline int getAmount(){ return amount; }
+	inline void setPredCorrect(int tpredCorrect){ predCorrect=tpredCorrect; }
+	inline void setAmount(int tamount){ amount=tamount; }
 };
 int main(int argc, char* argv[]){
-	int NOEntry, pc, target, result, pred;
+	int NOEntry, pc, target, result;
 	const int m=2, n=1;
 	if(argc<2){
 		cout<<"Please input the number of entries: ";
@@ -104,12 +148,22 @@ int main(int argc, char* argv[]){
 	else{
 		NOEntry = atoi( argv[1] );
 	}
-	Corelating cb(NOEntry, m, n);
-	BranchPredictor bp(cb);
+	Corelating cb(m, n);
+	BTB btb(NOEntry);
+	BranchPredictor bp(cb, btb);
 	// bt - branch table
 	ifstream fin("history.txt");
 	while(fin>> hex >> pc >> target >> dec >> result){
-		pred = bp.next(pc, target, result);
+		bp.next(pc, target, result);
 	}
-	cout << bp.getAmount() << " " << bp.getCorrect() <<endl;
+	/*
+	fin.clear();
+	fin.seekg(0, ios::beg);
+	bp.setAmount(0);
+	bp.setCorrect(0);
+	while(fin>> hex >> pc >> target >> dec >> result){
+		bp.next(pc, target, result);
+	}
+	*/
+	cout << bp.getAmount() << " " << bp.getPredCorrect() << " " << bp.getBtbHit() <<endl;
 }

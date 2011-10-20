@@ -1,2 +1,7 @@
 src/stage/coBranch
 src/*.swp
+src/tags
+Doxygen
+Doxyfile
+latex
+html

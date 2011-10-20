@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-g
+CFLAGS=-g -Wall
 
 all: stage/coBranch
 stage/coBranch: main.cpp
