@@ -1,4 +1,5 @@
 #include<iostream>
+#include<iomanip>
 #include<map>
 #include<cmath>
 #include<algorithm>
@@ -109,15 +110,27 @@ class Corelating:  public Predictor {
 };
 
 class BranchPredictor{
+	public:
+	struct BranchInfo{
+		int pc, correct, totalTimes;
+		BranchInfo():pc(BTB::NOADDR), correct(0), totalTimes(0){}
+	};
+	private:
+	map<int, BranchInfo> brInfoMap;
+	BranchInfo msb;
 	Predictor& ptor;
 	BTB& btb;
 	int predCorrect, btbHit, amount, compulsoryMiss;
+	
 	public:
 	BranchPredictor(Predictor& tptor, BTB& tbtb): ptor(tptor), btb(tbtb), predCorrect(0), btbHit(0), amount(0),compulsoryMiss(0) {}
 
 	void next(int pc, int target, int result){
 		bool pred = ptor.getPush(pc, result);
-		predCorrect = (pred == result ? predCorrect+1:predCorrect );
+		if(pred == result){
+			++predCorrect;
+			++brInfoMap[pc].correct;
+		}
 
 		int btbTarget = btb.getSet(pc,target);
 		if( btbTarget == BTB::NOADDR ){
@@ -127,9 +140,21 @@ class BranchPredictor{
 			++btbHit;
 		}
 		++amount;
+		++brInfoMap[pc].totalTimes;
+	}
+	BranchInfo getMSB(){
+		int maxTotalTimes=0;
+		for(map<int, BranchInfo>::iterator iter= brInfoMap.begin(); iter!=brInfoMap.end(); ++iter){
+			if( (iter->second).totalTimes > maxTotalTimes){
+				msb.pc = iter->first;
+				maxTotalTimes = msb.totalTimes = (iter->second).totalTimes;
+				msb.correct = (iter->second).correct;
+			}
+		}
+		return msb;
 	}
 	inline int getPredCorrect(){ return predCorrect; }
-	inline int getBtbHit(){ return btbHit; }
+	inline int getBTBHit(){ return btbHit; }
 	inline int getAmount(){ return amount; }
 	inline void setPredCorrect(int tpredCorrect){ predCorrect=tpredCorrect; }
 	inline void setAmount(int tamount){ amount=tamount; }
@@ -165,5 +190,22 @@ int main(int argc, char* argv[]){
 		bp.next(pc, target, result);
 	}
 	*/
-	cout << bp.getAmount() << " " << bp.getPredCorrect() << " " << bp.getBtbHit() <<endl;
+	BranchPredictor::BranchInfo msb = bp.getMSB();
+	cout<< setiosflags(ios::fixed) << setprecision(1) ;
+	cout<< "Exercise 2.13(a)" << endl;
+	cout<< "\tNumber of hits BTB: " << bp.getPredCorrect() << ". Total brs: "<< bp.getAmount() << ". Hit rate: " <<
+		( double( bp.getPredCorrect() ) /  bp.getAmount() ) * 100 <<"%"<<endl;
+	cout<< "Exercise 2.13(b)" << endl;
+	cout<< "\tIncorrect predictions: " << bp.getAmount()-bp.getBTBHit() << " of " << bp.getAmount() << ", or " <<
+		( (double(bp.getAmount()) - bp.getBTBHit() ) / bp.getAmount() ) *100 << "%" <<endl;
+	cout<< "Exercise 2.13(c)" << endl;
+	cout<< "\t $ sort -n history.txt | uniq -c | sort -n | tail -1"<<endl;
+	cout<< "\t先以address of branch instruction排序，再利用uniq算出同樣的有幾個，再以此結果排序，取最大的那個輸出" << endl;
+	//    634 0x4012c681	 0x4012c6b3	0
+	cout<< "\tMost significant branch is seen " << msb.totalTimes << " times, out of " << bp.getAmount() << " total brs ;"
+		<< ( double(msb.totalTimes) / bp.getAmount() ) *100 << "%" << endl;
+	cout<< "\tMS branch=0x"<< hex << msb.pc << dec << ", correct predictions=" << msb.correct << " (of " <<
+		msb.totalTimes << " total correct preds)  or " << (double(msb.correct) / msb.totalTimes) *100 << "%" <<endl;
+
+
 }
