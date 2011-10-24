@@ -1,4 +1,5 @@
 #include<iostream>
+#include<set>
 #include<iomanip>
 #include<map>
 #include<cmath>
@@ -65,6 +66,7 @@ class BTB{
 		setTargetAddress(brPC, target);
 		return returnAddr;
 	}
+	inline int getNOEntry(){ return btb.size(); }
 };
 class Corelating:  public Predictor {
 	map< AssignColumn, char , CmpColumn> predBit;
@@ -117,30 +119,42 @@ class BranchPredictor{
 	};
 	private:
 	map<int, BranchInfo> brInfoMap;
+	map<int, int> brConflict;
+	set<int> brConflictAddr;
 	BranchInfo msb;
 	Predictor& ptor;
 	BTB& btb;
-	int predCorrect, btbHit, amount, compulsoryMiss;
+	int predCorrect, btbHit, amount, compulsoryMiss, totalMissSeen;
 	
 	public:
-	BranchPredictor(Predictor& tptor, BTB& tbtb): ptor(tptor), btb(tbtb), predCorrect(0), btbHit(0), amount(0),compulsoryMiss(0) {}
+	BranchPredictor(Predictor& tptor, BTB& tbtb): ptor(tptor), btb(tbtb), predCorrect(0), btbHit(0), amount(0),compulsoryMiss(0) , totalMissSeen(0){}
 
 	void next(int pc, int target, int result){
 		bool pred = ptor.getPush(pc, result);
+		if( brInfoMap.find(pc) == brInfoMap.end() ){
+			++compulsoryMiss;
+		}
 		if(pred == result){
 			++predCorrect;
 			++brInfoMap[pc].correct;
 		}
 
 		int btbTarget = btb.getSet(pc,target);
-		if( btbTarget == BTB::NOADDR ){
-			++compulsoryMiss;
-		}
-		else if(btbTarget != BTB::CONFLICT_ADDR){
+		if(btbTarget != BTB::CONFLICT_ADDR && btbTarget != BTB::NOADDR){
 			++btbHit;
 		}
 		++amount;
 		++brInfoMap[pc].totalTimes;
+		map<int, int>::iterator iter = brConflict.find( pc%btb.getNOEntry() );
+		if( iter == brConflict.end()){
+			brConflict[ pc%btb.getNOEntry() ] = pc;
+			++totalMissSeen;
+		}
+		else if(iter->second != pc ){
+			++totalMissSeen; //brConflictAddr.insert(pc);
+			iter->second = pc;
+		}
+
 	}
 	BranchInfo getMSB(){
 		int maxTotalTimes=0;
@@ -156,8 +170,12 @@ class BranchPredictor{
 	inline int getPredCorrect(){ return predCorrect; }
 	inline int getBTBHit(){ return btbHit; }
 	inline int getAmount(){ return amount; }
+	inline int getCompulsoryMiss(){ return compulsoryMiss; }
+	inline int getTotalMissSeen(){ return totalMissSeen; }
 	inline void setPredCorrect(int tpredCorrect){ predCorrect=tpredCorrect; }
 	inline void setAmount(int tamount){ amount=tamount; }
+	inline void setBTBHit(int tbtbHit){ btbHit=tbtbHit; }
+
 };
 int main(int argc, char* argv[]){
 	int NOEntry, pc, target, result;
@@ -193,11 +211,11 @@ int main(int argc, char* argv[]){
 	BranchPredictor::BranchInfo msb = bp.getMSB();
 	cout<< setiosflags(ios::fixed) << setprecision(1) ;
 	cout<< "Exercise 2.13(a)" << endl;
-	cout<< "\tNumber of hits BTB: " << bp.getPredCorrect() << ". Total brs: "<< bp.getAmount() << ". Hit rate: " <<
-		( double( bp.getPredCorrect() ) /  bp.getAmount() ) * 100 <<"%"<<endl;
+	cout<< "\tNumber of hits BTB: " << bp.getBTBHit() << ". Total brs: "<< bp.getAmount() << ". Hit rate: " <<
+		( double( bp.getBTBHit() ) /  bp.getAmount() ) * 100 <<"%"<<endl;
 	cout<< "Exercise 2.13(b)" << endl;
-	cout<< "\tIncorrect predictions: " << bp.getAmount()-bp.getBTBHit() << " of " << bp.getAmount() << ", or " <<
-		( (double(bp.getAmount()) - bp.getBTBHit() ) / bp.getAmount() ) *100 << "%" <<endl;
+	cout<< "\tIncorrect predictions: " << bp.getAmount()-bp.getPredCorrect() << " of " << bp.getAmount() << ", or " <<
+		( (double(bp.getAmount()) - bp.getPredCorrect() ) / bp.getAmount() ) *100 << "%" <<endl;
 	cout<< "Exercise 2.13(c)" << endl;
 	cout<< "\t $ sort -n history.txt | uniq -c | sort -n | tail -1"<<endl;
 	cout<< "\t先以address of branch instruction排序，再利用uniq算出同樣的有幾個，再以此結果排序，取最大的那個輸出" << endl;
@@ -206,6 +224,42 @@ int main(int argc, char* argv[]){
 		<< ( double(msb.totalTimes) / bp.getAmount() ) *100 << "%" << endl;
 	cout<< "\tMS branch=0x"<< hex << msb.pc << dec << ", correct predictions=" << msb.correct << " (of " <<
 		msb.totalTimes << " total correct preds)  or " << (double(msb.correct) / msb.totalTimes) *100 << "%" <<endl;
+	cout<< "Exercise 2.1.3(d)" <<endl;
+	cout<< "\tTotal unique branches (1 miss per br compulsory): " << bp.getCompulsoryMiss() <<"."<<endl;
+	cout<< "\tTotal misses seen: " << bp.getTotalMissSeen() <<". So total capacity misses = total misses - compulsory misses = " 
+		<< bp.getTotalMissSeen() - bp.getCompulsoryMiss() <<"."<<endl;
 
+	fin.clear();
+	fin.seekg(0, ios::beg);
+	bp.setAmount(0);
+	bp.setPredCorrect(0);
+	bp.setBTBHit(0);
+	while(fin>> hex >> pc >> target >> dec >> result){
+		bp.next(pc, target, result);
+	}
 
+	cout<< "Exercise 2.13 (e)" <<endl;
+
+	cout<< "\tNumber of hits BTB: " << bp.getBTBHit() << ". Total brs: "<< bp.getAmount() << ". Hit rate: " <<
+		( double( bp.getBTBHit() ) /  bp.getAmount() ) * 100 <<"%"<<endl;
+	cout<< "\tIncorrect predictions: " << bp.getAmount()-bp.getPredCorrect() << " of " << bp.getAmount() << ", or " <<
+		( (double(bp.getAmount()) - bp.getPredCorrect() ) / bp.getAmount() ) *100 << "%" <<endl;
+
+	cout<< "Exercise 2.13 (f)" <<endl;
+	cout<< "\tBTB Length   miss rate" << endl;
+	for(int i=1 ; i<=64 ; i*=2){
+		fin.clear();
+		fin.seekg(0, ios::beg);
+
+		Corelating tcb(m, n);
+		BTB tbtb(i);
+		BranchPredictor tbp(tcb, tbtb);
+
+		while(fin>> hex >> pc >> target >> dec >> result){
+			tbp.next(pc, target, result);
+		}
+		cout<< setiosflags(ios::fixed) << setprecision(1) ;
+		cout<<'\t'<< setw(10) << i << setw(11) << ( (double(tbp.getAmount()) - tbp.getBTBHit() ) / tbp.getAmount() ) *100 << "%" <<endl;
+	
+	}
 }
