@@ -1,0 +1,24 @@
+Exercise 2.13(a)
+	Number of hits BTB: 1692. Total brs: 1792. Hit rate: 94.4%
+Exercise 2.13(b)
+	Incorrect predictions: 89 of 1792, or 5.0%
+Exercise 2.13(c)
+	 $ sort -n history.txt | uniq -c | sort -n | tail -1
+	先以address of branch instruction排序，再利用uniq算出同樣的有幾個，再以此結果排序，取最大的那個輸出
+	Most significant branch is seen 637 times, out of 1792 total brs ;35.5%
+	MS branch=0x4012c681, correct predictions=631 (of 637 total correct preds)  or 99.1%
+Exercise 2.1.3(d)
+	Total unique branches (1 miss per br compulsory): 95.
+	Total misses seen: 100. So total capacity misses = total misses - compulsory misses = 5.
+Exercise 2.13 (e)
+	Number of hits BTB: 1715. Total brs: 1792. Hit rate: 95.7%
+	Incorrect predictions: 54 of 1792, or 3.0%
+Exercise 2.13 (f)
+	BTB Length   miss rate
+	         1       92.2%
+	         2       22.7%
+	         4       10.4%
+	         8        7.3%
+	        16        5.9%
+	        32        5.6%
+	        64        5.6%

@@ -9,7 +9,6 @@
 #include<sstream>
 #include<vector>
 using namespace std;
-
 class Predictor{
 	public:
 		virtual bool getPrediction(int pc)	=0;
