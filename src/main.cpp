@@ -245,7 +245,7 @@ int main(int argc, char* argv[]){
 		( (double(bp.getAmount()) - bp.getPredCorrect() ) / bp.getAmount() ) *100 << "%" <<endl;
 
 	cout<< "Exercise 2.13 (f)" <<endl;
-	cout<< "\tBTB Length   miss rate" << endl;
+	cout<< "\tBTB Length   mispredict rate  miss rate" << endl;
 	for(int i=1 ; i<=64 ; i*=2){
 		fin.clear();
 		fin.seekg(0, ios::beg);
@@ -258,7 +258,7 @@ int main(int argc, char* argv[]){
 			tbp.next(pc, target, result);
 		}
 		cout<< setiosflags(ios::fixed) << setprecision(1) ;
-		cout<<'\t'<< setw(10) << i << setw(11) << ( (double(tbp.getAmount()) - tbp.getBTBHit() ) / tbp.getAmount() ) *100 << "%" <<endl;
+		cout<<'\t'<< setw(10) << i << setw(17) << ( (double(tbp.getAmount()) - tbp.getPredCorrect() ) / tbp.getAmount() ) *100 << "%"   << setw(11) << ( (double(tbp.getAmount()) - tbp.getBTBHit() ) / tbp.getAmount() ) *100 << "%" <<endl;
 	
 	}
 }
