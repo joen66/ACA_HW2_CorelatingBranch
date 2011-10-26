@@ -14,11 +14,11 @@ Exercise 2.13 (e)
 	Number of hits BTB: 1715. Total brs: 1792. Hit rate: 95.7%
 	Incorrect predictions: 54 of 1792, or 3.0%
 Exercise 2.13 (f)
-	BTB Length   miss rate
-	         1       92.2%
-	         2       22.7%
-	         4       10.4%
-	         8        7.3%
-	        16        5.9%
-	        32        5.6%
-	        64        5.6%
+	BTB Length   mispredict rate  miss rate
+	         1              5.0%       92.2%
+	         2              5.0%       22.7%
+	         4              5.0%       10.4%
+	         8              5.0%        7.3%
+	        16              5.0%        5.9%
+	        32              5.0%        5.6%
+	        64              5.0%        5.6%
